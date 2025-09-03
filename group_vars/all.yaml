@@ -1,5 +1,5 @@
-smtp_server: "smtp.gmail.com"
+smtp_server: "sandbox.smtp.mailtrap.io"
 smtp_port: 587
-email_user: "--"
-email_pass: "--"
-alert_recipient: "--"
+email_user: "0cccf77bb0206d"
+email_pass: "e917eecbf72b3a"
+alert_recipient: "parikshit.r@hcltech.com"
