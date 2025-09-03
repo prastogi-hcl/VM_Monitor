@@ -76,9 +76,9 @@
       shell: "ps -eo stat | grep -c '^R'"
       register: running_procs
 
-    - name: Count zombie processes
-      shell: "ps -eo stat | grep -c 'Z'"
-      register: zombie_procs
+   # - name: Count zombie processes
+    #  shell: "ps -eo stat | grep -c 'Z'"
+    #  register: zombie_procs
 
     - name: Get top 5 CPU processes
       shell: "ps -eo pid,comm,%cpu --sort=-%cpu | head -n 6"
