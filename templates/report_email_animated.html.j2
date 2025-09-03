@@ -79,12 +79,6 @@
     .disk-bar { background-color: #66bb6a; }
     .swap-bar { background-color: #ab47bc; }
 
-    .label {
-      margin-top: 4px;
-      font-size: 11px;
-      color: #555;
-    }
-
     .badge {
       font-size: 11px;
       padding: 3px 8px;
@@ -112,10 +106,10 @@
 
   <div class="summary">
     📅 <b>{{ collected_metrics | length }} VMs</b> | 
-    🔥 Avg CPU: {{ ((collected_metrics | map(attribute='cpu_usage') | map('float') | sum | float) / (collected_metrics | length)) | round(2) }}% | 
-    📥 Avg Mem: {{ ((collected_metrics | map(attribute='mem_usage') | map('float') | sum | float) / (collected_metrics | length)) | round(2) }}% | 
-    📦 Avg Disk: {{ ((collected_metrics | map(attribute='disk_usage') | map('float') | sum | float) / (collected_metrics | length)) | round(2) }}% | 
-    🔄 Avg Swap: {{ ((collected_metrics | map(attribute='swap_usage') | map('float') | sum | float) / (collected_metrics | length)) | round(2) }}%
+    🔥 Avg CPU: {{ ((collected_metrics | map(attribute='cpu_usage') | map('float') | sum | float) / (collected_metrics | length | default(1))) | round(2) }}% | 
+    📥 Avg Mem: {{ ((collected_metrics | map(attribute='mem_usage') | map('float') | sum | float) / (collected_metrics | length | default(1))) | round(2) }}% | 
+    📦 Avg Disk: {{ ((collected_metrics | map(attribute='disk_usage') | map('float') | sum | float) / (collected_metrics | length | default(1))) | round(2) }}% | 
+    🔄 Avg Swap: {{ ((collected_metrics | map(attribute='swap_usage') | map('float') | sum | float) / (collected_metrics | length | default(1))) | round(2) }}%
   </div>
 
   <table>
@@ -134,15 +128,15 @@
     </tr>
     {% for vm in collected_metrics %}
     <tr>
-      <td><b>{{ vm.hostname }}</b></td>
+      <td><b>{{ vm.hostname | default("unknown") }}</b></td>
 
       <!-- CPU -->
       <td>
-        {{ vm.cpu_usage }}%
-        <div class="bar-container"><div class="bar cpu-bar" style="width: {{ vm.cpu_usage }}%"></div></div>
-        {% if vm.cpu_usage|float < 50 %}
+        {{ vm.cpu_usage | default(0) | float }}%
+        <div class="bar-container"><div class="bar cpu-bar" style="width: {{ vm.cpu_usage | default(0) | float }}%"></div></div>
+        {% if vm.cpu_usage | default(0) | float < 50 %}
           <div class="badge healthy">Healthy</div>
-        {% elif vm.cpu_usage|float < 80 %}
+        {% elif vm.cpu_usage | float < 80 %}
           <div class="badge warning">Warning</div>
         {% else %}
           <div class="badge critical">Critical</div>
@@ -151,11 +145,11 @@
 
       <!-- Memory -->
       <td>
-        {{ vm.mem_usage }}%
-        <div class="bar-container"><div class="bar mem-bar" style="width: {{ vm.mem_usage }}%"></div></div>
-        {% if vm.mem_usage|float < 50 %}
+        {{ vm.mem_usage | default(0) | float }}%
+        <div class="bar-container"><div class="bar mem-bar" style="width: {{ vm.mem_usage | default(0) | float }}%"></div></div>
+        {% if vm.mem_usage | default(0) | float < 50 %}
           <div class="badge healthy">Healthy</div>
-        {% elif vm.mem_usage|float < 80 %}
+        {% elif vm.mem_usage | float < 80 %}
           <div class="badge warning">Warning</div>
         {% else %}
           <div class="badge critical">Critical</div>
@@ -164,11 +158,11 @@
 
       <!-- Disk -->
       <td>
-        {{ vm.disk_usage }}%
-        <div class="bar-container"><div class="bar disk-bar" style="width: {{ vm.disk_usage }}%"></div></div>
-        {% if vm.disk_usage|float < 50 %}
+        {{ vm.disk_usage | default(0) | float }}%
+        <div class="bar-container"><div class="bar disk-bar" style="width: {{ vm.disk_usage | default(0) | float }}%"></div></div>
+        {% if vm.disk_usage | default(0) | float < 50 %}
           <div class="badge healthy">Ample</div>
-        {% elif vm.disk_usage|float < 80 %}
+        {% elif vm.disk_usage | float < 80 %}
           <div class="badge warning">Monitor</div>
         {% else %}
           <div class="badge critical">Full</div>
@@ -177,11 +171,11 @@
 
       <!-- Swap -->
       <td>
-        {{ vm.swap_usage }}%
-        <div class="bar-container"><div class="bar swap-bar" style="width: {{ vm.swap_usage }}%"></div></div>
-        {% if vm.swap_usage|float < 20 %}
+        {{ vm.swap_usage | default(0) | float }}%
+        <div class="bar-container"><div class="bar swap-bar" style="width: {{ vm.swap_usage | default(0) | float }}%"></div></div>
+        {% if vm.swap_usage | default(0) | float < 20 %}
           <div class="badge healthy">Healthy</div>
-        {% elif vm.swap_usage|float < 50 %}
+        {% elif vm.swap_usage | float < 50 %}
           <div class="badge warning">Moderate</div>
         {% else %}
           <div class="badge critical">High</div>
@@ -189,33 +183,33 @@
       </td>
 
       <!-- Load Average -->
-      <td>{{ vm.load_avg }}</td>
+      <td>{{ vm.load_avg | default("N/A") }}</td>
 
       <!-- Processes -->
       <td>
-        Running: {{ vm.running_processes }}<br>
-        Zombies: {{ vm.zombie_processes }}
-        {% if vm.zombie_processes|int > 0 %}
+        Running: {{ vm.running_processes | default(0) | int }}<br>
+        Zombies: {{ vm.zombie_processes | default(0) | int }}
+        {% if vm.zombie_processes | default(0) | int > 0 %}
           <div class="badge critical">Zombie Alert</div>
         {% endif %}
       </td>
 
       <!-- Network -->
       <td>
-        RX: {{ (vm.net_rx_bytes / 1024 / 1024) | round(2) }} MB<br>
-        TX: {{ (vm.net_tx_bytes / 1024 / 1024) | round(2) }} MB<br>
-        Errors: {{ vm.net_rx_errors }}/{{ vm.net_tx_errors }}
-        {% if vm.net_rx_errors|int > 0 or vm.net_tx_errors|int > 0 %}
+        RX: {{ (vm.net_rx_bytes | default(0) | float / 1024 / 1024) | round(2) }} MB<br>
+        TX: {{ (vm.net_tx_bytes | default(0) | float / 1024 / 1024) | round(2) }} MB<br>
+        Errors: {{ vm.net_rx_errors | default(0) | int }}/{{ vm.net_tx_errors | default(0) | int }}
+        {% if (vm.net_rx_errors | default(0) | int) > 0 or (vm.net_tx_errors | default(0) | int) > 0 %}
           <div class="badge warning">Errors</div>
         {% endif %}
       </td>
 
       <!-- Open File Descriptors -->
       <td>
-        {{ vm.open_file_descriptors }}
-        {% if vm.open_file_descriptors|int < 10000 %}
+        {{ vm.open_file_descriptors | default(0) | int }}
+        {% if vm.open_file_descriptors | default(0) | int < 10000 %}
           <div class="badge healthy">Normal</div>
-        {% elif vm.open_file_descriptors|int < 50000 %}
+        {% elif vm.open_file_descriptors | int < 50000 %}
           <div class="badge warning">High</div>
         {% else %}
           <div class="badge critical">Critical</div>
@@ -223,10 +217,10 @@
       </td>
 
       <!-- Logged-in Users -->
-      <td>{{ vm.logged_in_users }}</td>
+      <td>{{ vm.logged_in_users | default(0) | int }}</td>
 
       <!-- Uptime -->
-      <td>{{ vm.uptime }}</td>
+      <td>{{ vm.uptime | default("N/A") }}</td>
     </tr>
     {% endfor %}
   </table>
