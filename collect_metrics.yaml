@@ -1,0 +1,130 @@
+- name: Collect VM metrics
+  hosts: env_dev
+  become: true
+  gather_facts: true
+  tasks:
+
+    # -----------------------------
+    # Install sysstat (needed for mpstat, iostat, etc.)
+    # -----------------------------
+    - name: Install sysstat on Debian
+      apt:
+        name: sysstat
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install sysstat on RedHat
+      yum:
+        name: sysstat
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    # -----------------------------
+    # CPU
+    # -----------------------------
+    - name: Get CPU usage (% busy)
+      shell: "mpstat 1 1 | awk '/Average/ && $NF ~ /[0-9.]+/ {print 100 - $NF}'"
+      register: cpu_usage
+      failed_when: false
+
+    - name: Get system load averages
+      shell: "uptime | awk -F'load average:' '{print $2}'"
+      register: load_avg
+
+    # -----------------------------
+    # Memory & Swap
+    # -----------------------------
+    - name: Get memory usage
+      shell: "free | awk '/Mem/{printf(\"%.2f\", $3/$2 * 100.0)}'"
+      register: mem_usage
+
+    - name: Get swap usage
+      shell: "free | awk '/Swap/{ if ($2==0) print 0; else printf(\"%.2f\", $3/$2 * 100.0)}'"
+      register: swap_usage
+
+    # -----------------------------
+    # Disk
+    # -----------------------------
+    - name: Get root disk usage
+      shell: "df / | awk 'NR==2 {print $5}' | tr -d '%'"
+      register: disk_usage
+
+    - name: Get disk I/O stats (read/write KB/s)
+      shell: "iostat -d 1 2 | awk 'NR>6 {print $1, $3, $4}'"
+      register: disk_io
+      failed_when: false
+
+    # -----------------------------
+    # Network
+    # -----------------------------
+    - name: Get primary network interface
+      set_fact:
+        primary_iface: "{{ ansible_default_ipv4.interface }}"
+
+    - name: Get RX/TX packets and errors
+      shell: |
+        cat /sys/class/net/{{ primary_iface }}/statistics/rx_bytes;
+        cat /sys/class/net/{{ primary_iface }}/statistics/tx_bytes;
+        cat /sys/class/net/{{ primary_iface }}/statistics/rx_errors;
+        cat /sys/class/net/{{ primary_iface }}/statistics/tx_errors
+      register: net_stats
+
+    # -----------------------------
+    # Processes
+    # -----------------------------
+    - name: Count running processes
+      shell: "ps -eo stat | grep -c '^R'"
+      register: running_procs
+
+    - name: Count zombie processes
+      shell: "ps -eo stat | grep -c 'Z'"
+      register: zombie_procs
+
+    - name: Get top 5 CPU processes
+      shell: "ps -eo pid,comm,%cpu --sort=-%cpu | head -n 6"
+      register: top_cpu_procs
+
+    - name: Get top 5 memory processes
+      shell: "ps -eo pid,comm,%mem --sort=-%mem | head -n 6"
+      register: top_mem_procs
+
+    # -----------------------------
+    # System Health
+    # -----------------------------
+    - name: Get uptime
+      shell: "uptime -p"
+      register: uptime_output
+
+    - name: Count open file descriptors
+      shell: "lsof | wc -l"
+      register: open_fds
+      failed_when: false
+
+    - name: Count logged in users
+      shell: "who | wc -l"
+      register: logged_users
+
+    # -----------------------------
+    # Consolidate all metrics
+    # -----------------------------
+    - name: Set consolidated VM metrics
+      set_fact:
+        vm_metrics:
+          hostname: "{{ inventory_hostname }}"
+          cpu_usage: "{{ (cpu_usage.stdout | default('0')) | float | round(2) }}"
+          load_avg: "{{ load_avg.stdout | default('0.00,0.00,0.00') }}"
+          mem_usage: "{{ (mem_usage.stdout | default('0')) | float | round(2) }}"
+          swap_usage: "{{ (swap_usage.stdout | default('0')) | float | round(2) }}"
+          disk_usage: "{{ (disk_usage.stdout | default('0')) | float | round(2) }}"
+          disk_io: "{{ disk_io.stdout_lines | default([]) }}"
+          net_rx_bytes: "{{ (net_stats.stdout_lines[0] | default('0')) | int }}"
+          net_tx_bytes: "{{ (net_stats.stdout_lines[1] | default('0')) | int }}"
+          net_rx_errors: "{{ (net_stats.stdout_lines[2] | default('0')) | int }}"
+          net_tx_errors: "{{ (net_stats.stdout_lines[3] | default('0')) | int }}"
+          running_processes: "{{ (running_procs.stdout | default('0')) | int }}"
+          zombie_processes: "{{ (zombie_procs.stdout | default('0')) | int }}"
+          top_cpu_procs: "{{ top_cpu_procs.stdout_lines | default([]) }}"
+          top_mem_procs: "{{ top_mem_procs.stdout_lines | default([]) }}"
+          uptime: "{{ uptime_output.stdout | default('N/A') }}"
+          open_file_descriptors: "{{ (open_fds.stdout | default('0')) | int }}"
+          logged_in_users: "{{ (logged_users.stdout | default('0')) | int }}"
