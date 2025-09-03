@@ -1,5 +1,5 @@
 - name: Collect VM metrics
-  hosts: env_dev
+  hosts: server
   become: true
   gather_facts: true
   tasks:
