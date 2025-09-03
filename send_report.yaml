@@ -1,5 +1,5 @@
 - name: Send consolidated VM report
-  hosts: localhost
+  hosts: server
   gather_facts: true
   vars:
     collected_metrics: >-
